@@ -1,84 +1,82 @@
-
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.*;
-import java.util.Properties;
-import java.util.logging.ConsoleHandler;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.*;
+import java.util.logging.*;
 
 public class SuffixingApp {
-
-    private static final Logger logger = Logger.getLogger(SuffixingApp.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(SuffixingApp.class.getName());
 
     public static void main(String[] args) {
         if (args.length != 1) {
-            System.err.println("Usage: java -jar suffixing.jar <config-file>");
+            System.err.println("Usage: java SuffixingApp <config-file>");
             System.exit(1);
         }
 
         String configFile = args[0];
+        Properties properties = loadConfig(configFile);
+        if (properties == null)
+            System.exit(1);
+        String mode = properties.getProperty("mode");
+        String suffix = properties.getProperty("suffix");
+        String files = properties.getProperty("files");
 
-        try {
-            Properties config = loadConfig(configFile);
-
-            String mode = config.getProperty("mode", "").toLowerCase();
-            String suffix = config.getProperty("suffix", "");
-            String filesList = config.getProperty("files", "");
-
-            if (mode.isEmpty() || (!mode.equals("copy") && !mode.equals("move"))) {
-                logger.log(Level.SEVERE, "Mode is not recognized: {0}", mode);
-                System.exit(1);
-            }
-
-            if (suffix.isEmpty()) {
-                logger.log(Level.SEVERE, "No suffix is configured");
-                System.exit(1);
-            }
-
-            if (filesList.isEmpty()) {
-                logger.log(Level.WARNING, "No files are configured to be copied/moved");
-                System.exit(1);
-            }
-
-            String[] files = filesList.split(":");
-            for (String filePath : files) {
-                processFile(filePath, mode, suffix);
-            }
-
-        } catch (IOException e) {
-            logger.log(Level.SEVERE, "Error reading config file: " + configFile, e);
+        if (mode == null || !mode.matches("(?i)(copy|move)")) {
+            LOGGER.log(Level.SEVERE, "Mode is not recognized: " + mode);
             System.exit(1);
         }
-    }
 
-    private static Properties loadConfig(String configFile) throws IOException {
-        Properties properties = new Properties();
-        try (FileSystem fileSystem = FileSystems.newFileSystem(Paths.get(configFile), (ClassLoader) null)) {
-            Path configPath = fileSystem.getPath("/config.properties");
-            properties.load(Files.newInputStream(configPath));
+        if (suffix == null) {
+            LOGGER.log(Level.SEVERE, "No suffix is configured");
+            System.exit(1);
         }
-        return properties;
+
+        if (files == null || files.isEmpty()) {
+            LOGGER.log(Level.WARNING, "No files are configured to be copied/moved");
+            System.exit(1);
+        }
+
+        String[] fileList = files.split(":");
+        for (String filePath : fileList) {
+            processFile(filePath.trim(), suffix, mode);
+        }
     }
 
-    private static void processFile(String filePath, String mode, String suffix) {
-        Path sourcePath = Paths.get(filePath);
-        if (Files.exists(sourcePath)) {
-            String destinationFileName = sourcePath.getFileName().toString().replaceFirst("\\.\\w+$", "-" + suffix + "$0");
-            Path destinationPath = sourcePath.resolveSibling(destinationFileName);
+    private static Properties loadConfig(String configFile) {
+        Properties properties = new Properties();
+        try (InputStream input = new FileInputStream(configFile)) {
+            properties.load(input);
+            return properties;
+        } catch (IOException e) {
+            LOGGER.log(Level.SEVERE, "Error loading config file: " + configFile, e);
+            return null;
+        }
+    }
 
+    private static void processFile(String filePath, String suffix, String mode) {
+        File file = new File(filePath);
+        if (!file.exists()) {
+            LOGGER.log(Level.SEVERE, "No such file: " + filePath.replace("\\", "/"));
+            return;
+        }
+
+        String fileName = file.getName();
+        String newName = fileName.substring(0, fileName.lastIndexOf('.')) + "-" + suffix + fileName.substring(fileName.lastIndexOf('.'));
+        File newFile = new File(file.getParent(), newName);
+
+        if (mode.equalsIgnoreCase("copy")) {
             try {
-                if (mode.equals("copy")) {
-                    Files.copy(sourcePath, destinationPath, StandardCopyOption.REPLACE_EXISTING);
-                    logger.log(Level.INFO, "{0} -> {1}", new Object[]{sourcePath, destinationPath});
-                } else if (mode.equals("move")) {
-                    Files.move(sourcePath, destinationPath, StandardCopyOption.REPLACE_EXISTING);
-                    logger.log(Level.INFO, "{0} => {1}", new Object[]{sourcePath, destinationPath});
-                }
+                Files.copy(file.toPath(), newFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                LOGGER.log(Level.INFO, file.getPath().replace("\\", "/") + " -> " + newFile.getPath().replace("\\", "/"));
             } catch (IOException e) {
-                logger.log(Level.SEVERE, "Error processing file: " + filePath, e);
+                LOGGER.log(Level.SEVERE, "Error copying file: " + file.getPath(), e);
             }
-        } else {
-            logger.log(Level.SEVERE, "No such file: {0}", filePath.replace('\\', '/'));
+        } else if (mode.equalsIgnoreCase("move")) {
+            try {
+                Files.move(file.toPath(), newFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                LOGGER.log(Level.INFO, file.getPath().replace("\\", "/") + " => " + newFile.getPath().replace("\\", "/"));
+            } catch (IOException e) {
+                LOGGER.log(Level.SEVERE, "Error moving file: " + file.getPath(), e);
+            }
         }
     }
 }

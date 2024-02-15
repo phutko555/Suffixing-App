@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.epam.rd.autotasks</groupId>
-    <artifactId>suffixing-app-test</artifactId>
+    <artifactId>suffixing</artifactId>
     <version>1.0-SNAPSHOT</version>
 
     <properties>
@@ -17,13 +17,6 @@
 
     <dependencies>
 
-        <dependency>
-            <groupId>suffixing</groupId>
-            <artifactId>suffixing</artifactId>
-            <version>1.0</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/src/main/resources/suffixing.jar</systemPath>
-        </dependency>
 
 
         <dependency>
@@ -76,7 +69,32 @@
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <version>2.22.2</version>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                        <configuration>
+                            <archive>
+                                <manifest>
+                                    <mainClass>
+                                        SuffixingApp
+                                    </mainClass>
+                                </manifest>
+                            </archive>
+                            <descriptorRefs>
+                                <descriptorRef>jar-with-dependencies</descriptorRef>
+                            </descriptorRefs>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
+
     </build>
 
 </project>
