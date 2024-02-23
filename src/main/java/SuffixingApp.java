@@ -9,30 +9,30 @@ public class SuffixingApp {
     public static void main(String[] args) {
         if (args.length != 1) {
             System.err.println("Usage: java SuffixingApp <config-file>");
-            System.exit(1);
+            return;
         }
 
         String configFile = args[0];
         Properties properties = loadConfig(configFile);
         if (properties == null)
-            System.exit(1);
+            return;
         String mode = properties.getProperty("mode");
         String suffix = properties.getProperty("suffix");
         String files = properties.getProperty("files");
 
         if (mode == null || !mode.matches("(?i)(copy|move)")) {
             LOGGER.log(Level.SEVERE, "Mode is not recognized: " + mode);
-            System.exit(1);
+            return;
         }
 
         if (suffix == null) {
             LOGGER.log(Level.SEVERE, "No suffix is configured");
-            System.exit(1);
+            return;
         }
 
         if (files == null || files.isEmpty()) {
             LOGGER.log(Level.WARNING, "No files are configured to be copied/moved");
-            System.exit(1);
+            return;
         }
 
         String[] fileList = files.split(":");
@@ -60,7 +60,7 @@ public class SuffixingApp {
         }
 
         String fileName = file.getName();
-        String newName = fileName.substring(0, fileName.lastIndexOf('.')) + "-" + suffix + fileName.substring(fileName.lastIndexOf('.'));
+        String newName = fileName.substring(0, fileName.lastIndexOf('.'))  + suffix + fileName.substring(fileName.lastIndexOf('.'));
         File newFile = new File(file.getParent(), newName);
 
         if (mode.equalsIgnoreCase("copy")) {
